@@ -1,4 +1,3 @@
-#3BPTTRNM07LMR8D1
 from kafka import KafkaProducer
 import json
 import time

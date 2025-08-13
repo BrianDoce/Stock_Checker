@@ -6,7 +6,6 @@ kafka-python==2.0.2
 confluent-kafka==2.3.0
 
 # Database
-psycopg2-binary==2.9.9
 SQLAlchemy==2.0.31
 
 # API requests & environment variables
@@ -39,3 +38,7 @@ isort==5.13.2
 # Optional: transformations with dbt (if you use it)
 dbt-core==1.8.6
 dbt-postgres==1.8.2
+
+websockets==12.0
+
+

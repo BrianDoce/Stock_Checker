@@ -4,7 +4,7 @@ from json import loads
 from sqlalchemy import create_engine, text
 import statistics
 KAFKA_TOPIC = "stock_prices"
-POSTGRES_URI = "postgresql+psycopg2://user:root@localhost:5432/stocks_db"
+POSTGRES_URI = "postgresql+psycopg2://postgres:root@localhost:5432/stocks_db"
 engine = create_engine(POSTGRES_URI)
 
 # Store previous prices for feature engineering

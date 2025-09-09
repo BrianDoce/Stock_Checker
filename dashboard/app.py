@@ -1,4 +1,4 @@
-# dashboard/app.py
+from ml.analytics import compute_returns, cluster_stocks, summarize_clusters
 import streamlit as st
 import pandas as pd
 import psycopg2
@@ -10,7 +10,6 @@ STOCK_SYMBOLS = [
     "META", "TSLA", "BRK.B", "JPM", "UNH"
 ]
 
-# --- Database Connection ---
 db_user = st.secrets["connections"]["postgresql"]["username"]
 db_pass = st.secrets["connections"]["postgresql"]["password"]
 db_host = st.secrets["connections"]["postgresql"]["host"]
@@ -31,10 +30,8 @@ def load_data():
     conn.close()
     return df
 
-# --- Title ---
 st.title("Stock Dashboard")
 
-# --- Refresh Button ---
 if st.sidebar.button("Refresh Data"):
     st.cache_data.clear()
     st.rerun()
@@ -42,7 +39,6 @@ if st.sidebar.button("Refresh Data"):
 df = load_data()
 df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-# --- Date Range Filter ---
 st.subheader("Select Date Range")
 min_date, max_date = df["timestamp"].min(), df["timestamp"].max()
 date_range = st.date_input(
@@ -52,7 +48,6 @@ date_range = st.date_input(
     max_value=max_date.date()
 )
 
-# --- Stock Symbol Filter (checkboxes + clear all) ---
 st.subheader("Select Stock Symbols")
 selected_symbols = []
 cols = st.columns(6)
@@ -62,7 +57,6 @@ for i, symbol in enumerate(STOCK_SYMBOLS):
     if cols[i % 6].checkbox(symbol, value=default_value, key=f"chk_{symbol}"):
         selected_symbols.append(symbol)
 
-# --- Filter Data ---
 filtered_df = df.copy()
 if selected_symbols:
     filtered_df = filtered_df[filtered_df["symbol"].isin(selected_symbols)]
@@ -77,16 +71,12 @@ if len(date_range) == 2:
 st.subheader("Correlation Heatmap of Returns")
 
 if len(selected_symbols) > 1:
-    # Pivot data: rows = timestamp, columns = symbol, values = price
     pivot_df = filtered_df.pivot(index="timestamp", columns="symbol", values="price")
     
-    # Compute daily returns
     returns_df = pivot_df.pct_change().dropna()
     
-    # Correlation matrix
     corr_matrix = returns_df.corr()
     
-    # Plot heatmap using Plotly
     fig_corr = go.Figure(
         data=go.Heatmap(
             z=corr_matrix.values,
@@ -105,7 +95,7 @@ if len(selected_symbols) > 1:
     st.plotly_chart(fig_corr, use_container_width=True)
 else:
     st.info("Select at least two stock symbols to view correlation heatmap.")
-# --- KPIs Section ---
+
 st.subheader("Key Metrics")
 if not filtered_df.empty:
     for sym in selected_symbols:
@@ -124,15 +114,13 @@ if not filtered_df.empty:
         if avg_volume:
             kpi_cols[2].metric(label=f"{sym} Avg Volume", value=f"{avg_volume:,.0f}")
 
-# --- Show Latest Data ---
 st.write("### Latest Stock Data", filtered_df.tail(20))
 
-# --- Line Chart ---
 if not filtered_df.empty:
     st.line_chart(
         filtered_df.pivot(index="timestamp", columns="symbol", values="price")
     )
-# --- Download Button ---
+
 csv = filtered_df.to_csv(index=False).encode("utf-8")
 st.download_button(
     label="Download filtered data as CSV",
@@ -140,3 +128,14 @@ st.download_button(
     file_name="filtered_stocks.csv",
     mime="text/csv",
 )
+
+returns_df = compute_returns(filtered_df)
+
+cluster_df, corr_matrix = cluster_stocks(returns_df, n_clusters=3)
+
+st.subheader("Stock Clusters")
+st.dataframe(cluster_df)
+
+st.subheader("Market Summary (AI)")
+summary_text = summarize_clusters(cluster_df, corr_matrix)
+st.write(summary_text)

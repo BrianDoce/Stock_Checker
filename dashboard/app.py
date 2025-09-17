@@ -3,6 +3,8 @@ import streamlit as st
 import pandas as pd
 import psycopg2
 import plotly.graph_objects as go
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 STOCK_SYMBOLS = [ 
     "SPY",  # S&P 500 ETF
@@ -132,10 +134,23 @@ st.download_button(
 returns_df = compute_returns(filtered_df)
 
 cluster_df, corr_matrix = cluster_stocks(returns_df, n_clusters=3)
+st.subheader("Stock Clusters & Correlation")
 
-st.subheader("Stock Clusters")
-st.dataframe(cluster_df)
+if cluster_df is None or corr_matrix is None:
+    st.info("Select at least 3 stocks to view clustering and correlation.")
+else:
+    st.write("### Clusters")
+    st.dataframe(cluster_df)
+
+    st.write("### Correlation Heatmap")
+
+    fig, ax = plt.subplots()
+    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", ax=ax)
+    st.pyplot(fig)
 
 st.subheader("Market Summary (AI)")
-summary_text = summarize_clusters(cluster_df, corr_matrix)
-st.write(summary_text)
+if cluster_df is None or corr_matrix is None:
+    st.info("No clusters available for summary. Please select at least 3 stocks to generate a market summary.")
+else:
+    summary_text = summarize_clusters(cluster_df, corr_matrix)
+    st.write(summary_text)

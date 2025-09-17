@@ -22,38 +22,45 @@ def compute_returns(df: pd.DataFrame) -> pd.DataFrame:
     df.dropna(subset=["return"], inplace=True)
     return df
 
-def cluster_stocks(df: pd.DataFrame, n_clusters=3) -> pd.DataFrame:
+def cluster_stocks(df: pd.DataFrame, n_clusters=3):
     """
-    Cluster stocks based on returns correlation.
-    Returns DataFrame mapping symbols to cluster labels.
+    Cluster stocks based on their return time series.
+    Input: df with columns = stock symbols, rows = timestamps.
+    Returns cluster_df and correlation matrix, or (None, None) if not enough data.
     """
-    returns_df = df.pivot(index="timestamp", columns="symbol", values="return").fillna(0)
-    corr = returns_df.corr()  
+    # Keep only numeric columns (drop timestamp/symbols)
+    numeric_df = df.select_dtypes(include=[np.number])
 
-    scaler = StandardScaler()
-    X = scaler.fit_transform(corr) 
+    if numeric_df.shape[1] < n_clusters:
+        return None, None
 
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    labels = kmeans.fit_predict(X)
+    try:
+        # Standardize across stocks
+        X = StandardScaler().fit_transform(numeric_df.T)  # stocks as samples
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init="auto")
+        labels = kmeans.fit_predict(X)
 
-    cluster_df = pd.DataFrame({
-        "symbol": corr.index,
-        "cluster": labels
-    })
+        cluster_df = pd.DataFrame({
+            "symbol": numeric_df.columns,
+            "cluster": labels
+        })
 
-    return cluster_df, corr
-
-# -----------------------------
-# LLM Summary Function
-# -----------------------------
+        corr_matrix = numeric_df.corr()
+        return cluster_df, corr_matrix
+    except Exception as e:
+        print(f"[Error in clustering]: {e}")
+        return None, None
+    
 def summarize_clusters(cluster_df: pd.DataFrame, corr_matrix: pd.DataFrame) -> str:
     """
-    Generate a plain-language summary using OpenAI LLM.
+    Generate a plain-language summary using Gemini.
     """
+    if cluster_df is None or corr_matrix is None:
+        return "Not enough data to summarize clusters."
+
     summary_text = ""
     for c in sorted(cluster_df["cluster"].unique()):
         symbols_in_cluster = cluster_df[cluster_df["cluster"] == c]["symbol"].tolist()
-        # Compute average pairwise correlation within cluster
         subset = corr_matrix.loc[symbols_in_cluster, symbols_in_cluster]
         avg_corr = subset.values[np.triu_indices_from(subset.values, k=1)].mean()
         summary_text += f"Cluster {c}: {', '.join(symbols_in_cluster)} (avg corr={avg_corr:.2f})\n"
@@ -65,6 +72,6 @@ def summarize_clusters(cluster_df: pd.DataFrame, corr_matrix: pd.DataFrame) -> s
     )
 
     response = client.models.generate_content(
-    model="gemini-2.5-flash-lite", contents=prompt)
-
-    return response.choices[0].message.content.strip()
+            model="gemini-2.5-flash-lite", contents=prompt)
+    
+    return response.text.strip()

@@ -1,93 +1,46 @@
+version: "3.8"
 services:
-  postgres:
-    image: postgres:16
-    container_name: stock_checker-postgres
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=root
-      - POSTGRES_DB=stocks_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.0
-    container_name: stock_checker-zookeeper
-    environment:
-      - ZOOKEEPER_CLIENT_PORT=2181
-      - ZOOKEEPER_TICK_TIME=2000
+    image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.0
-    container_name: stock_checker-kafka
-    depends_on:
-      - zookeeper
-    environment:
-      - KAFKA_BROKER_ID=1
-      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+    image: wurstmeister/kafka
     ports:
-      - "29092:29092"
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  airflow-db:
+  stock_checker-postgres:
     image: postgres:15
-    container_name: airflow-postgres
     environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: stocks_db
     ports:
-      - "5433:5432"
-    volumes:
-      - airflow_postgres_data:/var/lib/postgresql/data
+      - "5432:5432"
 
-  airflow-webserver:
-    image: apache/airflow:2.9.3
-    container_name: stock_checker-airflow-webserver
+  producer:
+    build: ./producer
     depends_on:
-      - postgres
       - kafka
     environment:
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:root@postgres:5432/stocks_db
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__FERNET_KEY=yzzloINFd7PIqvXCK7Vgn8N0wYNPd4VHMdasHryP05E=
-      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
-      - AIRFLOW__CORE__LOAD_EXAMPLES=false
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-      - ./requirements.txt:/requirements.txt
-    command: >
-      bash -c "pip install --no-cache-dir -r /requirements.txt && airflow db init && airflow webserver"
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: stock_prices
+      STOCK_SYMBOLS: "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA"
 
-
-  airflow-scheduler:
-    image: apache/airflow:2.9.3
-    container_name: stock_checker-airflow-scheduler
+  consumer:
+    build: ./consumer
     depends_on:
-      - airflow-webserver
+      - kafka
+      - stock_checker-postgres
     environment:
-      - AIRFLOW__CORE__FERNET_KEY=yzzloINFd7PIqvXCK7Vgn8N0wYNPd4VHMdasHryP05E=
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-      - ./requirements.txt:/requirements.txt
-
-    command: >
-        bash -c "pip install --no-cache-dir -r /requirements.txt && airflow scheduler"
-
-
-volumes:
-  postgres_data:
-  airflow_postgres_data:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: stock_prices
+      POSTGRES_URI: postgresql+psycopg2://postgres:root@stock_checker-postgres:5432/stocks_db

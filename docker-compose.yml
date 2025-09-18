@@ -1,4 +1,5 @@
 version: "3.8"
+
 services:
   zookeeper:
     image: wurstmeister/zookeeper
@@ -25,6 +26,15 @@ services:
     ports:
       - "5432:5432"
 
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - stock_checker-postgres
+    environment:
+      POSTGRES_URI: postgresql://postgres:root@stock_checker-postgres:5432/stocks_db
+      
   producer:
     build: ./producer
     depends_on:

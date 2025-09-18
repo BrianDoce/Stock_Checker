@@ -1,6 +1,6 @@
 from kafka import KafkaProducer
 import json
-import websocket
+import websocket, time
 
 API_KEY = "d2dlm19r01qjrul3rdfgd2dlm19r01qjrul3rdg0"
 STOCK_SYMBOLS = [
@@ -10,7 +10,7 @@ STOCK_SYMBOLS = [
 ]
 KAFKA_TOPIC = "stock_prices"
 
-def run_producer():
+def run_producer(duration=300):
     """Start WebSocket producer and stream to Kafka."""
     producer = KafkaProducer(
         bootstrap_servers=["kafka:29092"],
@@ -46,7 +46,13 @@ def run_producer():
             on_close=on_close,
             on_open=on_open,
         )
-        ws.run_forever()
+        start = time.time()
+        while time.time() - start < duration:
+            ws.run_forever(dispatcher=None, reconnect=5)
+        
+        ws.close()
+        producer.close()
+        print("[Producer] Finished streaming")
     except KeyboardInterrupt:
         print("[Producer] Stopped manually")
     except Exception as e:

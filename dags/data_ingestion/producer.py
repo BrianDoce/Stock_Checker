@@ -10,11 +10,10 @@ STOCK_SYMBOLS = [
 ]
 KAFKA_TOPIC = "stock_prices"
 
-
 def run_producer():
     """Start WebSocket producer and stream to Kafka."""
     producer = KafkaProducer(
-        bootstrap_servers=["localhost:29092"],  # use service name in docker-compose
+        bootstrap_servers=["kafka:29092"],
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
 
@@ -52,3 +51,5 @@ def run_producer():
         print("[Producer] Stopped manually")
     except Exception as e:
         print(f"[Producer Fatal Error]: {e}")
+if __name__ == "__main__":
+    run_producer()

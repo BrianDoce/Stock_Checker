@@ -4,7 +4,7 @@ from json import loads
 from sqlalchemy import create_engine, text
 import statistics
 KAFKA_TOPIC = "stock_prices"
-POSTGRES_URI = "postgresql+psycopg2://postgres:root@localhost:5432/stocks_db"
+POSTGRES_URI = "postgresql+psycopg2://postgres:root@postgres:5432/stocks_db"
 engine = create_engine(POSTGRES_URI)
 
 # Store previous prices for feature engineering
@@ -13,7 +13,7 @@ price_history = {}  # {symbol: [p1, p2, ...]}
 
 consumer = KafkaConsumer(
         KAFKA_TOPIC,
-        bootstrap_servers='localhost:9092',
+        bootstrap_servers='kafka:29092',
         value_deserializer=lambda v: loads(v.decode('utf-8')),
         auto_offset_reset='latest',
         enable_auto_commit=True,
@@ -25,6 +25,8 @@ for message in consumer:
     try:
         raw_data = message.value
         
+        if raw_data.get("type") != "trade":
+            continue
         # Extract symbol & time series
         trades = raw_data.get("data", [])
         if not trades:

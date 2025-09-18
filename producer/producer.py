@@ -1,19 +1,21 @@
 from kafka import KafkaProducer
 import json
 import websocket, time
+import os
 
-API_KEY = "d2dlm19r01qjrul3rdfgd2dlm19r01qjrul3rdg0"
 STOCK_SYMBOLS = [
-    "SPY",  # S&P 500 ETF
+    "SPY",
     "AAPL", "MSFT", "AMZN", "GOOGL", "NVDA",
     "META", "TSLA", "BRK.B", "JPM", "UNH"
 ]
-KAFKA_TOPIC = "stock_prices"
 
-def run_producer(duration=300):
+KAFKA_TOPIC = "stock_trades"
+API_KEY = os.getenv("FINNHUB_API_KEY")
+
+def run_producer():
     """Start WebSocket producer and stream to Kafka."""
     producer = KafkaProducer(
-        bootstrap_servers=["kafka:29092"],
+        bootstrap_servers=["kafka:9092"],
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
 
@@ -46,16 +48,14 @@ def run_producer(duration=300):
             on_close=on_close,
             on_open=on_open,
         )
-        start = time.time()
-        while time.time() - start < duration:
-            ws.run_forever(dispatcher=None, reconnect=5)
         
-        ws.close()
-        producer.close()
+        ws.run_forever()
         print("[Producer] Finished streaming")
     except KeyboardInterrupt:
         print("[Producer] Stopped manually")
     except Exception as e:
         print(f"[Producer Fatal Error]: {e}")
 if __name__ == "__main__":
+    if not API_KEY:
+        raise ValueError("Missing FINNHUB_API_KEY environment variable")
     run_producer()

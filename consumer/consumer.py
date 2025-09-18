@@ -9,11 +9,11 @@ engine = create_engine(POSTGRES_URI)
 
 # Store previous prices for feature engineering
 last_seen_prices = {}
-price_history = {}  # {symbol: [p1, p2, ...]}
+price_history = {} # For rolling average
 
 consumer = KafkaConsumer(
         KAFKA_TOPIC,
-        bootstrap_servers='kafka:29092',
+        bootstrap_servers='kafka:9092',
         value_deserializer=lambda v: loads(v.decode('utf-8')),
         auto_offset_reset='latest',
         enable_auto_commit=True,

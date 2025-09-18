@@ -1,0 +1,6 @@
+kafka-python
+websocket-client
+sqlalchemy
+psycopg2-binary
+pandas
+numpy

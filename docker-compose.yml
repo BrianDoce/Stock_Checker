@@ -30,10 +30,8 @@ services:
     depends_on:
       - kafka
     environment:
-      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: stock_prices
-      STOCK_SYMBOLS: "AAPL,MSFT,GOOGL,AMZN,NVDA,TSLA"
 
   consumer:
     build: ./consumer

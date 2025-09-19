@@ -5,6 +5,7 @@ import psycopg2
 import plotly.graph_objects as go
 import seaborn as sns
 import matplotlib.pyplot as plt
+import os
 
 STOCK_SYMBOLS = [ 
     "SPY",  # S&P 500 ETF
@@ -12,11 +13,11 @@ STOCK_SYMBOLS = [
     "META", "TSLA", "BRK.B", "JPM", "UNH"
 ]
 
-db_user = st.secrets["connections"]["postgresql"]["username"]
-db_pass = st.secrets["connections"]["postgresql"]["password"]
-db_host = st.secrets["connections"]["postgresql"]["host"]
-db_port = st.secrets["connections"]["postgresql"]["port"]
-db_name = st.secrets["connections"]["postgresql"]["database"]
+db_user = os.environ.get("POSTGRES_USER", "postgres")
+db_pass = os.environ.get("POSTGRES_PASSWORD", "root")
+db_host = os.environ.get("POSTGRES_HOST", "localhost")  # fallback to localhost
+db_port = os.environ.get("POSTGRES_PORT", 5432)
+db_name = os.environ.get("POSTGRES_DB", "stocks_db")
 
 @st.cache_data(ttl=60)
 def load_data():

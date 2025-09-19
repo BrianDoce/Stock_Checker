@@ -1,24 +1,72 @@
 from kafka import KafkaConsumer
-from datetime import datetime, time as dtime
+from datetime import datetime
+import time
 from json import loads
 from sqlalchemy import create_engine, text
+from sqlalchemy.exc import OperationalError
 import statistics
-KAFKA_TOPIC = "stock_prices"
-POSTGRES_URI = "postgresql+psycopg2://postgres:root@stock_checker-postgres:5432/stocks_db"
-engine = create_engine(POSTGRES_URI)
+import os 
+
+KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "stock_trades")
+POSTGRES_USER = os.environ.get("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD", "root")
+POSTGRES_DB = os.environ.get("POSTGRES_DB", "stocks_db")
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT", 5432)
+bootstrap_servers = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+
+POSTGRES_URI = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+
+for i in range(10):
+    try:
+        engine = create_engine(POSTGRES_URI)
+        with engine.connect() as conn:
+            print("✅ Connected to Postgres")
+        break
+    except OperationalError:
+        print("⏳ Waiting for Postgres...")
+        time.sleep(5)
+else:
+    raise Exception("❌ Could not connect to Postgres after retries")
+
+with engine.begin() as conn:
+    conn.execute(
+        text("""
+        CREATE TABLE IF NOT EXISTS stock_trades (
+            symbol TEXT,
+            price DOUBLE PRECISION,
+            timestamp TIMESTAMP,
+            volume INTEGER,
+            price_change_pct DOUBLE PRECISION,
+            rolling_avg_price DOUBLE PRECISION,
+            volume_category TEXT,
+            market_session TEXT
+        );
+        """)
+    )
 
 # Store previous prices for feature engineering
 last_seen_prices = {}
 price_history = {} # For rolling average
 
-consumer = KafkaConsumer(
-        KAFKA_TOPIC,
-        bootstrap_servers='kafka:9092',
-        value_deserializer=lambda v: loads(v.decode('utf-8')),
-        auto_offset_reset='latest',
-        enable_auto_commit=True,
-        group_id='stock_group'
-)
+consumer = None
+for i in range(10):
+    try:
+        consumer = KafkaConsumer(
+            KAFKA_TOPIC,
+            bootstrap_servers=bootstrap_servers,
+            value_deserializer=lambda v: loads(v.decode('utf-8')),
+            auto_offset_reset='latest',
+            enable_auto_commit=True,
+            group_id='stock_group'
+        )
+        print("✅ Connected to Kafka")
+        break
+    except Exception:
+        print("⏳ Waiting for Kafka...")
+        time.sleep(5)
+else:
+    raise Exception("❌ Could not connect to Kafka after retries")
 print("[Consumer] Listening for stock data...")
 
 for message in consumer:
@@ -78,9 +126,9 @@ for message in consumer:
 
         # 4. Market session flag
         def get_market_session(ts):
-            if ts.time() < dtime(9, 30):
+            if ts.time() < datetime.time(9, 30):
                 return "pre-market"
-            elif ts.time() <= dtime(16, 0):
+            elif ts.time() <= datetime.time(16, 0):
                 return "regular"
             else:
                 return "after-hours"

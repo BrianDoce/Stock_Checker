@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Default command (overridden by docker-compose if needed)
-CMD ["python", "producer.py"]
+CMD ["python", "consumer.py"]

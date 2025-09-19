@@ -1,16 +1,12 @@
-# Stock_Checker/dashboard/Dockerfile
-
 FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy requirements (you might have dashboard-specific requirements.txt)
-COPY ../requirements.txt /app/requirements.txt
-
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy dashboard code
-COPY . /app
+# Copy everything (including ml/ and dashboard/)
+COPY . .
 
 EXPOSE 8501
 

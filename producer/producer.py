@@ -45,8 +45,9 @@ def run_producer():
             data = json.loads(message)
             if data.get("type") == "trade":
                 for trade in data["data"]:
-                    producer.send(KAFKA_TOPIC, trade)
-                    print(f"[Producer] Sent trade: {trade}")
+                    wrapped = {"type": "trade", "data": [trade]}
+                    producer.send(KAFKA_TOPIC, wrapped)
+                    print(f"[Producer] Sent trade: {wrapped}")
         except Exception as e:
             print(f"[Producer Error] on_message: {e}")
 

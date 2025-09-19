@@ -1,5 +1,5 @@
 from kafka import KafkaConsumer
-from datetime import datetime
+from datetime import datetime, time as dtime
 import time
 from json import loads
 from sqlalchemy import create_engine, text
@@ -56,7 +56,7 @@ for i in range(10):
             KAFKA_TOPIC,
             bootstrap_servers=bootstrap_servers,
             value_deserializer=lambda v: loads(v.decode('utf-8')),
-            auto_offset_reset='latest',
+            auto_offset_reset='earliest',
             enable_auto_commit=True,
             group_id='stock_group'
         )
@@ -126,9 +126,9 @@ for message in consumer:
 
         # 4. Market session flag
         def get_market_session(ts):
-            if ts.time() < datetime.time(9, 30):
+            if ts.time() < dtime(9, 30):
                 return "pre-market"
-            elif ts.time() <= datetime.time(16, 0):
+            elif ts.time() <= dtime(16, 0):
                 return "regular"
             else:
                 return "after-hours"

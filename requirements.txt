@@ -1,13 +1,11 @@
-# Airflow (works with SQLAlchemy 1.4.x)
-apache-airflow[postgres,slack]==2.9.3
-
 # Kafka
 kafka-python==2.0.2
 websocket-client==1.6.1
 
 # Database
 SQLAlchemy==1.4.52
-psycopg2-binary==2.9.9
+psycopg2-binary>=2.9.9,<3
+
 
 # API requests & environment variables
 requests==2.32.3
